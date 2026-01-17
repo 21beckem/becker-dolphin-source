@@ -42,6 +42,8 @@
 #include "DolphinQt/Translation.h"
 #include "DolphinQt/Updater.h"
 
+#include "DolphinQt/WiiUpdate.h"
+
 #include "UICommon/CommandLineParse.h"
 #include "UICommon/UICommon.h"
 
@@ -199,7 +201,12 @@ int main(int argc, char* argv[])
 
   std::unique_ptr<BootParameters> boot;
   bool game_specified = false;
-  if (options.is_set("exec"))
+  bool is_updating = false;
+  if (options.is_set("system_update"))
+  {
+    is_updating = true;
+  }
+  else if (options.is_set("exec"))
   {
     const std::list<std::string> paths_list = options.all("exec");
     const std::vector<std::string> paths{std::make_move_iterator(std::begin(paths_list)),
@@ -238,14 +245,14 @@ int main(int argc, char* argv[])
         QObject::tr("A save state cannot be loaded without specifying a game to launch."));
     retval = 1;
   }
-  else if (Settings::Instance().IsBatchModeEnabled() && !game_specified)
+  else if (Settings::Instance().IsBatchModeEnabled() && !game_specified && !is_updating)
   {
     ModalMessageBox::critical(
         nullptr, QObject::tr("Error"),
-        QObject::tr("Batch mode cannot be used without specifying a game to launch."));
+        QObject::tr("Batch mode cannot be used without performing an update or specifying a game to launch."));
     retval = 1;
   }
-  else if (!boot && (Settings::Instance().IsBatchModeEnabled() || save_state_path))
+  else if (!boot && (Settings::Instance().IsBatchModeEnabled() || save_state_path) && !is_updating)
   {
     // A game to launch was specified, but it was invalid.
     // An error has already been shown by code above, so exit without showing another error.
@@ -288,8 +295,26 @@ int main(int argc, char* argv[])
       updater->start();
     }
 
-    retval = app.exec();
+    if (options.is_set("system_update"))
+    {
+      if (WiiUpdate::PerformOnlineUpdate("", &win))
+      {
+        retval = 0;
+      }
+      else
+      {
+        retval = 1;
+      }
+      if (!(Settings::Instance().IsBatchModeEnabled() && !game_specified))
+        app.exec();
+    }
+    else
+    {
+      retval = app.exec();
+    }
   }
+
+  // if (!Settings::Instance().IsBatchModeEnabled() || game_specified)
 
   Core::Shutdown(Core::System::GetInstance());
   UICommon::Shutdown();

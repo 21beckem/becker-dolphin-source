@@ -83,6 +83,8 @@ std::unique_ptr<optparse::OptionParser> CreateParser(ParserOptions options)
   auto parser = std::make_unique<optparse::OptionParser>();
   parser->usage("usage: %prog [options]... [FILE]...").version(Common::GetScmRevStr());
 
+  parser->add_option("-U", "--system_update").action("store_true").help("Perform online system update");
+
   parser->add_option("-u", "--user").action("store").help("User folder path");
   parser->add_option("-m", "--movie").action("store").help("Play a movie file");
   parser->add_option("-e", "--exec")

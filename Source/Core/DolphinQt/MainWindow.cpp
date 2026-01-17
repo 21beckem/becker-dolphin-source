@@ -806,7 +806,22 @@ QStringList MainWindow::PromptFileNames()
 
 void MainWindow::ChangeDisc()
 {
-  std::vector<std::string> paths = StringListToStdVector(PromptFileNames());
+  std::vector<std::string> paths;
+
+  std::string myFilePath;
+  std::string diskPathFileLocation = File::GetExeDirectory() + "\\diskPath.txt";
+  if (File::ReadFileToString(diskPathFileLocation, myFilePath))
+  {
+    // validate that the found file path actually exists
+    if (File::Exists(myFilePath))
+    {
+      paths = {myFilePath};
+      m_system.GetDVDInterface().ChangeDisc(Core::CPUThreadGuard{m_system}, paths);
+    }
+    return;
+  }
+
+  paths = StringListToStdVector(PromptFileNames());
 
   if (paths.empty())
     return;

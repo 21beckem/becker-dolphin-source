@@ -133,16 +133,18 @@ static WiiUtils::UpdateResult ShowProgress(QWidget* parent, Callable function, A
   return result.get();
 }
 
-void PerformOnlineUpdate(const std::string& region, QWidget* parent)
+bool PerformOnlineUpdate(const std::string& region, QWidget* parent)
 {
   const int confirm = ModalMessageBox::question(
       parent, QObject::tr("Confirm"),
       QObject::tr("Connect to the Internet and perform an online system update?"));
   if (confirm != QMessageBox::Yes)
-    return;
+    return false;
 
   const WiiUtils::UpdateResult result = ShowProgress(parent, WiiUtils::DoOnlineUpdate, region);
   ShowResult(parent, result);
+  return ( result == WiiUtils::UpdateResult::Succeeded ||
+          result == WiiUtils::UpdateResult::AlreadyUpToDate );
 }
 
 void PerformDiscUpdate(const std::string& file_path, QWidget* parent)

@@ -5,4 +5,8 @@
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <ShowAllFiles>true</ShowAllFiles>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommandArgumentsHistory>--systemupdate|--systemupdate --batch|-U -b -n 0000000100000002|-U|-U -b|</LocalDebuggerCommandArgumentsHistory>
+    <LocalDebuggerCommandArguments>-U -b</LocalDebuggerCommandArguments>
+  </PropertyGroup>
 </Project>
