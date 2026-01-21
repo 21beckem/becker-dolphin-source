@@ -6,7 +6,11 @@
     <ShowAllFiles>true</ShowAllFiles>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommandArgumentsHistory>--systemupdate|--systemupdate --batch|-U -b -n 0000000100000002|-U|-U -b|</LocalDebuggerCommandArgumentsHistory>
-    <LocalDebuggerCommandArguments>-U -b</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArgumentsHistory>-U="hello" -b|-U="USA" -b|-U="HEHE" -b|-U=HEHE -b|-U=USA -b|</LocalDebuggerCommandArgumentsHistory>
+    <LocalDebuggerCommandArguments>-U=USA -b</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LocalDebuggerCommandArguments>-U=USA -b</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArgumentsHistory>-U -b|-U=USA -b|</LocalDebuggerCommandArgumentsHistory>
   </PropertyGroup>
 </Project>

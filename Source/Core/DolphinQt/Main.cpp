@@ -202,9 +202,23 @@ int main(int argc, char* argv[])
   std::unique_ptr<BootParameters> boot;
   bool game_specified = false;
   bool is_updating = false;
+  std::string update_region = "";
   if (options.is_set("system_update"))
   {
-    is_updating = true;
+    std::unordered_set<std::string> region_options = {"EUR", "JPN", "KOR", "USA"};
+    std::string my_choice = static_cast<const char*>(options.get("system_update"));
+    my_choice = my_choice.substr(1);
+    if (region_options.find(my_choice) != region_options.end())
+    {
+      update_region = my_choice;
+      is_updating = true;
+    }
+    else
+    {
+      std::string error_message = "Invalid update region: " + my_choice;
+      ModalMessageBox::critical(nullptr, QObject::tr("Error"), QObject::tr(error_message.c_str()));
+      return 1;
+    }
   }
   else if (options.is_set("exec"))
   {
@@ -297,7 +311,7 @@ int main(int argc, char* argv[])
 
     if (options.is_set("system_update"))
     {
-      if (WiiUpdate::PerformOnlineUpdate("", &win))
+      if (WiiUpdate::PerformOnlineUpdate(update_region, &win))
       {
         retval = 0;
       }
