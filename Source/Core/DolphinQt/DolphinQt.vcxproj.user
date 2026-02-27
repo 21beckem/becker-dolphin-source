@@ -10,7 +10,7 @@
     <LocalDebuggerCommandArguments>-U=USA -b</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LocalDebuggerCommandArguments>-U=USA -b</LocalDebuggerCommandArguments>
-    <LocalDebuggerCommandArgumentsHistory>-U -b|-U=USA -b|</LocalDebuggerCommandArgumentsHistory>
+    <LocalDebuggerCommandArgumentsHistory>-U -b|-U=USA -b|-b -n 0000000100000002|</LocalDebuggerCommandArgumentsHistory>
+    <LocalDebuggerCommandArguments>-b -n 0000000100000002</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

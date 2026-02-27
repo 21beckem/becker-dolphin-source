@@ -12,6 +12,8 @@
 #include "Core/IOS/ES/Formats.h"
 #include "Core/System.h"
 
+#include "Core/IOS/ES/ExtraChannelManager.h"
+
 namespace IOS::HLE
 {
 // Used by the GetStoredContents ioctlvs. This assumes that the first output vector
@@ -128,7 +130,11 @@ IPCReply ESDevice::GetTitleCount(const std::vector<u64>& titles, const IOCtlVReq
 
   auto& system = GetSystem();
   auto& memory = system.GetMemory();
-  memory.Write_U32(static_cast<u32>(titles.size()), request.io_vectors[0].address);
+
+  const auto extras = ExtraChannelManager::GetExtraTitleIDs();
+  u32 total_count = static_cast<u32>(titles.size()) + static_cast<u32>(extras.size());
+
+  memory.Write_U32(total_count, request.io_vectors[0].address);
 
   return IPCReply(IPC_SUCCESS);
 }
@@ -140,12 +146,41 @@ IPCReply ESDevice::GetTitles(const std::vector<u64>& titles, const IOCtlVRequest
 
   auto& system = GetSystem();
   auto& memory = system.GetMemory();
+
   const size_t max_count = memory.Read_U32(request.in_vectors[0].address);
-  for (size_t i = 0; i < std::min(max_count, titles.size()); i++)
+
+  // Get virtual/extra titles
+  const auto extra_titles = ExtraChannelManager::GetExtraTitleIDs();
+
+  const size_t real_count = titles.size();
+  const size_t extra_count = extra_titles.size();
+  const size_t total_available = real_count + extra_count;
+
+  const size_t write_count = std::min(max_count, total_available);
+
+  size_t written = 0;
+
+  // 1️⃣ Write real titles first (unchanged behavior)
+  for (; written < std::min(write_count, real_count); ++written)
   {
-    memory.Write_U64(titles[i], request.io_vectors[0].address + static_cast<u32>(i) * sizeof(u64));
-    INFO_LOG_FMT(IOS_ES, "     title {:016x}", titles[i]);
+    memory.Write_U64(titles[written],
+                     request.io_vectors[0].address + static_cast<u32>(written) * sizeof(u64));
+
+    INFO_LOG_FMT(IOS_ES, "     title {:016x}", titles[written]);
   }
+
+  // 2️⃣ Write extra titles after real ones
+  for (size_t extra_index = 0; written < write_count && extra_index < extra_count;
+       ++extra_index, ++written)
+  {
+    const u64 title_id = extra_titles[extra_index];
+
+    memory.Write_U64(title_id,
+                     request.io_vectors[0].address + static_cast<u32>(written) * sizeof(u64));
+
+    INFO_LOG_FMT(IOS_ES, "     extra title {:016x}", title_id);
+  }
+
   return IPCReply(IPC_SUCCESS);
 }
 

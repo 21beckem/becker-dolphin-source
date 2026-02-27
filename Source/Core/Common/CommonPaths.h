@@ -43,6 +43,7 @@
 #define JPN_DIR "JPN"
 
 // Subdirs in the User dir returned by GetUserPath(D_USER_IDX)
+#define EXTRA_CHANNELS_DIR "ExtraChannels"
 #define GC_USER_DIR "GC"
 #define GBA_USER_DIR "GBA"
 #define WII_USER_DIR "Wii"

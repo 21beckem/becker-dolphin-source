@@ -35,6 +35,8 @@ enum
                           // settings (per game)
   D_SKYLANDERS_IDX,
 
+  D_EXTRACHANNELS_IDX,
+
   D_MAPS_IDX,
   D_CACHE_IDX,
   D_COVERCACHE_IDX,

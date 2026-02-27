@@ -24,6 +24,7 @@
 #include "Core/Core.h"
 #include "Core/CoreTiming.h"
 #include "Core/HW/Memmap.h"
+#include "Core/HW/DVD/DVDInterface.h"
 #include "Core/IOS/ES/Formats.h"
 #include "Core/IOS/FS/FileSystem.h"
 #include "Core/IOS/FS/FileSystemProxy.h"
@@ -32,6 +33,8 @@
 #include "Core/IOS/VersionInfo.h"
 #include "Core/System.h"
 #include "DiscIO/Enums.h"
+
+#include "Core/IOS/ES/ExtraChannelManager.h"
 
 namespace IOS::HLE
 {
@@ -153,6 +156,8 @@ void ESDevice::FinalizeEmulationState()
 void ESDevice::FinishInit()
 {
   GetEmulationKernel().InitIPC();
+
+  ExtraChannelManager::Initialize();
 
   std::optional<u64> pending_launch_title_id;
 
@@ -325,6 +330,34 @@ IPCReply ESDevice::SetUID(u32 uid, const IOCtlVRequest& request)
 
 bool ESDevice::LaunchTitle(u64 title_id, HangPPC hang_ppc)
 {
+  if (ExtraChannelManager::IsExtraTitle(title_id))
+  {
+    const auto ch = ExtraChannelManager::GetChannel(title_id);
+    if (!ch.iso_path.empty())
+    {
+      INFO_LOG_FMT(IOS_ES, "Launching extra channel {:016x} from path: {}", title_id, ch.iso_path);
+      
+      // Use DVDInterface::ChangeDisc to swap to the ISO file
+      // This is the Core-level equivalent to MainWindow::StartGame for live disc changes
+      try
+      {
+        Core::CPUThreadGuard guard{GetSystem()};
+        GetSystem().GetDVDInterface().ChangeDisc(guard, ch.iso_path);
+        return true;
+      }
+      catch (const std::exception& e)
+      {
+        ERROR_LOG_FMT(IOS_ES, "Failed to launch extra channel {:016x}: {}", title_id, e.what());
+        return false;
+      }
+    }
+    else
+    {
+      ERROR_LOG_FMT(IOS_ES, "Extra channel {:016x} has no iso_path configured", title_id);
+      return false;
+    }
+  }
+
   m_core.m_title_context.Clear();
   INFO_LOG_FMT(IOS_ES, "ES_Launch: Title context changed: (none)");
 
