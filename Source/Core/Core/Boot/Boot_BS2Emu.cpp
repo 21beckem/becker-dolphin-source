@@ -627,3 +627,75 @@ bool CBoot::EmulatedBS2(Core::System& system, const Core::CPUThreadGuard& guard,
   return is_wii ? EmulatedBS2_Wii(system, guard, volume, riivolution_patches) :
                   EmulatedBS2_GC(system, guard, volume, riivolution_patches);
 }
+
+// Boot a Wii disc game from ES context after an IOS reload.
+// This performs the same steps as EmulatedBS2_Wii, minus SetupWiiMemory and BootIOS
+// (which have already been done). The disc must already be in DVDInterface.
+bool CBoot::BootDiscGameFromES(Core::System& system, const std::string& disc_path)
+{
+  auto volume = DiscIO::CreateDisc(disc_path);
+  if (!volume)
+  {
+    PanicAlertFmt("BootDiscGameFromES: Failed to open disc image: {}", disc_path);
+    return false;
+  }
+
+  if (volume->GetVolumeType() != DiscIO::Platform::WiiDisc)
+  {
+    PanicAlertFmt("BootDiscGameFromES: Not a Wii disc: {}", disc_path);
+    return false;
+  }
+
+  const DiscIO::Partition partition = volume->GetGamePartition();
+  const IOS::ES::TMDReader tmd = volume->GetTMD(partition);
+  if (!tmd.IsValid())
+  {
+    PanicAlertFmt("BootDiscGameFromES: Invalid TMD");
+    return false;
+  }
+
+  auto& memory = system.GetMemory();
+
+  // Write partition offset info to memory (same as EmulatedBS2_Wii).
+  memory.Write_U32(0, 0x3194);
+  memory.Write_U32(static_cast<u32>(partition.offset >> 2), 0x3198);
+
+  // Initialize the DI device and set the active partition.
+  auto di = std::static_pointer_cast<IOS::HLE::DIDevice>(
+      system.GetIOS()->GetDeviceByName("/dev/di"));
+  di->InitializeIfFirstTime();
+  di->ChangePartition(partition);
+
+  DVDReadDiscID(system, *volume, 0x00000000);
+  DVDRead(system, *volume, 0, 0x3180, 4, partition);
+
+  auto& ppc_state = system.GetPPCState();
+
+  SetupMSR(system);
+  SetupHID(ppc_state, /*is_wii*/ true);
+  SetupBAT(system, /*is_wii*/ true);
+
+  memory.Write_U32(0x4c000064, 0x00000300);  // Write default DSI Handler:   rfi
+  memory.Write_U32(0x4c000064, 0x00000800);  // Write default FPU Handler:   rfi
+  memory.Write_U32(0x4c000064, 0x00000C00);  // Write default Syscall Handler: rfi
+
+  ppc_state.gpr[1] = 0x816ffff0;  // StackPointer
+
+  ASSERT(Core::IsCPUThread());
+  Core::CPUThreadGuard guard(system);
+
+  if (!RunApploader(system, guard, /*is_wii*/ true, *volume, {}))
+  {
+    PanicAlertFmt("BootDiscGameFromES: RunApploader failed");
+    return false;
+  }
+
+  // The Apploader probably just overwrote values needed for RAM Override.  Run this again!
+  IOS::HLE::RAMOverrideForIOSMemoryValues(memory, IOS::HLE::MemorySetupType::IOSReload);
+
+  system.GetIOS()->GetESDevice()->DIVerify(tmd, volume->GetTicket(partition));
+
+  SConfig::OnTitleDirectlyBooted(guard);
+
+  return true;
+}

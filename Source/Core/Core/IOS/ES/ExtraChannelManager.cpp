@@ -11,14 +11,14 @@
 #include "Common/FileUtil.h"
 #include "Common/CommonPaths.h"
 
-// Helper function for case-insensitive string comparison
-static bool iequals(const std::string& a, const std::string& b)
-{
-  return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) {
-    return std::tolower(static_cast<unsigned char>(a)) ==
-           std::tolower(static_cast<unsigned char>(b));
-  });
-}
+//// Helper function for case-insensitive string comparison
+//static bool iequals(const std::string& a, const std::string& b)
+//{
+//  return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) {
+//    return std::tolower(static_cast<unsigned char>(a)) ==
+//           std::tolower(static_cast<unsigned char>(b));
+//  });
+//}
 
 namespace IOS::HLE
 {
@@ -71,73 +71,81 @@ void ExtraChannelManager::Reload()
 
 void ExtraChannelManager::LoadFromDirectory(const std::string& host_dir)
 {
-  INFO_LOG_FMT(IOS_ES, "ExtraChannelManager: loading from '{}'", host_dir);
-  try
-  {
-    for (const auto& ent : directory_iterator(host_dir))
-    {
-      if (!ent.is_regular_file())
-        continue;
+  ExtraChannel ch;
+  std::string iso_path_file = "C:/Users/21bec/AppData/Roaming/BeckerBox/games/Wii Sports.rvz";
+  ch.iso_path = iso_path_file;
+  u64 title = 281480652869701;
+  s_channels.emplace(title, std::move(ch));
+  return;
 
-      // Expect files named like 00010010ABCDEF01.meta or 00010010ABCDEF01.json
-      const std::string name = ent.path().filename().string();
-      // Extract 16 hex chars at start (allow uppercase/lowercase)
-      std::smatch m;
-      static const std::regex r(R"(^([0-9A-Fa-f]{16}))");
-      if (!std::regex_search(name, m, r))
-        continue;
 
-      const std::string idhex = m[1].str();
-      u64 title = 0;
-      try
-      {
-        title = std::stoull(idhex, nullptr, 16);
-      }
-      catch (...)
-      {
-        continue;
-      }
+  //INFO_LOG_FMT(IOS_ES, "ExtraChannelManager: loading from '{}'", host_dir);
+  //try
+  //{
+  //  for (const auto& ent : directory_iterator(host_dir))
+  //  {
+  //    if (!ent.is_regular_file())
+  //      continue;
 
-      ExtraChannel ch;
-      ch.title_id = title;
+  //    // Expect files named like 00010010ABCDEF01.meta or 00010010ABCDEF01.json
+  //    const std::string name = ent.path().filename().string();
+  //    // Extract 16 hex chars at start (allow uppercase/lowercase)
+  //    std::smatch m;
+  //    static const std::regex r(R"(^([0-9A-Fa-f]{16}))");
+  //    if (!std::regex_search(name, m, r))
+  //      continue;
 
-      // Try to read optional companion path file: <TITLEID>.path (contains ISO absolute path),
-      // or parse small JSON-like line for "isoPath":"...".
-      const path iso_path_file = ent.path().parent_path() / (idhex + ".path");
-      if (exists(iso_path_file))
-      {
-        std::ifstream f(iso_path_file);
-        std::string line;
-        if (std::getline(f, line))
-        {
-          ch.iso_path = line;
-        }
-      }
-      else
-      {
-        // Try to parse a tiny JSON file with "isoPath":"..." (naive, tolerate simple JSON)
-        if (iequals(ent.path().extension().string(), ".json") ||
-            iequals(ent.path().extension().string(), ".meta"))
-        {
-          std::ifstream f(ent.path());
-          std::string all((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-          static const std::regex jre(R"("isoPath"\s*:\s*"([^"]+)");
-          std::smatch jm;
-          if (std::regex_search(all, jm, jre))
-            ch.iso_path = jm[1].str();
-          // banner path could be similarly parsed if desired
-        }
-      }
+  //    const std::string idhex = m[1].str();
+  //    u64 title = 0;
+  //    try
+  //    {
+  //      title = std::stoull(idhex, nullptr, 16);
+  //    }
+  //    catch (...)
+  //    {
+  //      continue;
+  //    }
 
-      s_channels.emplace(title, std::move(ch));
-    }
-    INFO_LOG_FMT(IOS_ES, "ExtraChannelManager: loaded {} channels", s_channels.size());
-  }
-  catch (const std::exception& e)
-  {
-    ERROR_LOG_FMT(IOS_ES, "ExtraChannelManager: failed to scan directory '{}': {}", host_dir,
-                  e.what());
-  }
+  //    ExtraChannel ch;
+  //    ch.title_id = title;
+
+  //    // Try to read optional companion path file: <TITLEID>.path (contains ISO absolute path),
+  //    // or parse small JSON-like line for "isoPath":"...".
+  //    const path iso_path_file = ent.path().parent_path() / (idhex + ".path");
+  //    if (exists(iso_path_file))
+  //    {
+  //      std::ifstream f(iso_path_file);
+  //      std::string line;
+  //      if (std::getline(f, line))
+  //      {
+  //        ch.iso_path = line;
+  //      }
+  //    }
+  //    else
+  //    {
+  //      // Try to parse a tiny JSON file with "isoPath":"..." (naive, tolerate simple JSON)
+  //      if (iequals(ent.path().extension().string(), ".json") ||
+  //          iequals(ent.path().extension().string(), ".meta"))
+  //      {
+  //        std::ifstream f(ent.path());
+  //        std::string all((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+  //        static const std::regex jre(R"("isoPath"\s*:\s*"([^"]+)");
+  //        std::smatch jm;
+  //        if (std::regex_search(all, jm, jre))
+  //          ch.iso_path = jm[1].str();
+  //        // banner path could be similarly parsed if desired
+  //      }
+  //    }
+
+  //    s_channels.emplace(title, std::move(ch));
+  //  }
+  //  INFO_LOG_FMT(IOS_ES, "ExtraChannelManager: loaded {} channels", s_channels.size());
+  //}
+  //catch (const std::exception& e)
+  //{
+  //  ERROR_LOG_FMT(IOS_ES, "ExtraChannelManager: failed to scan directory '{}': {}", host_dir,
+  //                e.what());
+  //}
 }
 
 std::vector<u64> ExtraChannelManager::GetExtraTitleIDs()

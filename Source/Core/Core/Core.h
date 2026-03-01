@@ -185,6 +185,12 @@ void QueueHostJob(std::function<void(Core::System&)> job, bool run_during_stop =
 // WMUserJobDispatch will be sent when something is added to the queue.
 void HostDispatchJobs(Core::System& system);
 
+// Request a restart with a specific boot target (e.g., disc game ISO path)
+void RequestRestart(const std::string& boot_path);
+bool HasPendingRestartRequest();
+std::string GetPendingRestartPath();
+void ClearRestartRequest();
+
 void DoFrameStep(Core::System& system);
 
 void UpdateInputGate(bool require_focus, bool require_full_focus = false);

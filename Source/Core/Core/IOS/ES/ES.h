@@ -413,8 +413,10 @@ private:
 
   bool LaunchIOS(u64 ios_title_id, HangPPC hang_ppc);
   bool LaunchPPCTitle(u64 title_id);
+  bool LaunchDiscGame(const std::string& iso_path);
 
   void FinishInit();
+  void FinishDiscBoot();
 
   s32 WriteSystemFile(const std::string& path, const std::vector<u8>& data, Ticks ticks = {});
   s32 WriteLaunchFile(const ES::TMDReader& tmd, Ticks ticks = {});

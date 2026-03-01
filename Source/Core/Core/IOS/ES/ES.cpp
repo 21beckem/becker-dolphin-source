@@ -19,6 +19,7 @@
 #include "Common/ScopeGuard.h"
 #include "Common/StringUtil.h"
 #include "Core/AchievementManager.h"
+#include "Core/Boot/Boot.h"
 #include "Core/CommonTitles.h"
 #include "Core/ConfigManager.h"
 #include "Core/Core.h"
@@ -33,6 +34,7 @@
 #include "Core/IOS/VersionInfo.h"
 #include "Core/System.h"
 #include "DiscIO/Enums.h"
+#include "DiscIO/VolumeDisc.h"
 
 #include "Core/IOS/ES/ExtraChannelManager.h"
 
@@ -69,6 +71,10 @@ constexpr size_t SPACE_FILE_SIZE = sizeof(u64) + sizeof(ES::TicketView) + ES::MA
 CoreTiming::EventType* s_finish_init_event;
 CoreTiming::EventType* s_reload_ios_for_ppc_launch_event;
 CoreTiming::EventType* s_bootstrap_ppc_for_launch_event;
+
+// Persists across IOS reloads (which destroy the ESDevice instance).
+// Set in Phase 1 (LaunchDiscGame), consumed in Phase 2 (FinishDiscBoot).
+std::string s_pending_disc_boot_path;
 
 constexpr SystemTimers::TimeBaseTick GetESBootTicks(u32 ios_version)
 {
@@ -158,6 +164,14 @@ void ESDevice::FinishInit()
   GetEmulationKernel().InitIPC();
 
   ExtraChannelManager::Initialize();
+
+  // Check if we're resuming a disc game boot after IOS reload (Phase 2).
+  if (!s_pending_disc_boot_path.empty())
+  {
+    NOTICE_LOG_FMT(IOS_ES, "FinishInit: Completing disc boot for: {}", s_pending_disc_boot_path);
+    FinishDiscBoot();
+    return;
+  }
 
   std::optional<u64> pending_launch_title_id;
 
@@ -335,21 +349,18 @@ bool ESDevice::LaunchTitle(u64 title_id, HangPPC hang_ppc)
     const auto ch = ExtraChannelManager::GetChannel(title_id);
     if (!ch.iso_path.empty())
     {
-      INFO_LOG_FMT(IOS_ES, "Launching extra channel {:016x} from path: {}", title_id, ch.iso_path);
+      NOTICE_LOG_FMT(IOS_ES, "LaunchTitle: Requesting restart to boot disc for extra channel {:016x}: {}",
+                     title_id, ch.iso_path);
+
+      // Request a full emulation restart with the disc as the boot target
+      Core::RequestRestart(ch.iso_path);
       
-      // Use DVDInterface::ChangeDisc to swap to the ISO file
-      // This is the Core-level equivalent to MainWindow::StartGame for live disc changes
-      try
-      {
-        Core::CPUThreadGuard guard{GetSystem()};
-        GetSystem().GetDVDInterface().ChangeDisc(guard, ch.iso_path);
-        return true;
-      }
-      catch (const std::exception& e)
-      {
-        ERROR_LOG_FMT(IOS_ES, "Failed to launch extra channel {:016x}: {}", title_id, e.what());
-        return false;
-      }
+      // Queue a stop job to trigger the restart
+      Core::QueueHostJob([](Core::System& system) {
+        Core::Stop(system);
+      }, true);
+      
+      return true;
     }
     else
     {
@@ -421,6 +432,61 @@ bool ESDevice::LaunchIOS(u64 ios_title_id, HangPPC hang_ppc)
   }
 
   return GetEmulationKernel().BootIOS(ios_title_id, hang_ppc);
+}
+
+bool ESDevice::LaunchDiscGame(const std::string& iso_path)
+{
+  m_core.m_title_context.Clear();
+  INFO_LOG_FMT(IOS_ES, "LaunchDiscGame: Title context changed: (none)");
+
+  NOTICE_LOG_FMT(IOS_ES, "LaunchDiscGame: Starting boot for: {}", iso_path);
+
+  // Open the disc to read its TMD and determine the required IOS version.
+  auto disc = DiscIO::CreateDisc(iso_path);
+  if (!disc)
+  {
+    ERROR_LOG_FMT(IOS_ES, "LaunchDiscGame: Failed to open disc: {}", iso_path);
+    return false;
+  }
+
+  const DiscIO::Partition partition = disc->GetGamePartition();
+  const ES::TMDReader tmd = disc->GetTMD(partition);
+  if (!tmd.IsValid())
+  {
+    ERROR_LOG_FMT(IOS_ES, "LaunchDiscGame: Invalid TMD in disc: {}", iso_path);
+    return false;
+  }
+
+  // Insert the disc into the emulated DVD drive.
+  auto& system = GetSystem();
+  system.GetDVDInterface().SetDisc(std::move(disc), {});
+  NOTICE_LOG_FMT(IOS_ES, "LaunchDiscGame: Disc inserted successfully");
+
+  // Store the path so Phase 2 (FinishDiscBoot) can complete the boot after IOS reload.
+  s_pending_disc_boot_path = iso_path;
+  NOTICE_LOG_FMT(IOS_ES, "LaunchDiscGame: Set s_pending_disc_boot_path to: {}", iso_path);
+
+  // Reload into the IOS version required by the disc game.
+  const u64 required_ios = tmd.GetIOSId();
+  NOTICE_LOG_FMT(IOS_ES, "LaunchDiscGame: Reloading into IOS {:016x} for disc: {}", required_ios,
+                 iso_path);
+  return LaunchIOS(required_ios, HangPPC::Yes);
+}
+
+void ESDevice::FinishDiscBoot()
+{
+  if (s_pending_disc_boot_path.empty())
+    return;
+
+  const std::string disc_path = s_pending_disc_boot_path;
+  s_pending_disc_boot_path.clear();
+
+  NOTICE_LOG_FMT(IOS_ES, "FinishDiscBoot: Booting disc game from: {}", disc_path);
+
+  if (!CBoot::BootDiscGameFromES(GetSystem(), disc_path))
+  {
+    PanicAlertFmt("FinishDiscBoot: Failed to boot disc game: {}", disc_path);
+  }
 }
 
 s32 ESDevice::WriteLaunchFile(const ES::TMDReader& tmd, Ticks ticks)

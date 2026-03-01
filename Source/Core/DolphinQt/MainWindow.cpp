@@ -36,6 +36,7 @@
 
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
+#include "Common/Logging/Log.h"
 #include "Common/ScopeGuard.h"
 #include "Common/Version.h"
 #include "Common/WindowSystemInfo.h"
@@ -904,6 +905,20 @@ void MainWindow::TogglePause()
 void MainWindow::OnStopComplete()
 {
   m_stop_requested = false;
+
+  // Check if a restart was requested (e.g., for launching disc games from extra channels)
+  if (Core::HasPendingRestartRequest())
+  {
+    std::string boot_path = Core::GetPendingRestartPath();
+    Core::ClearRestartRequest();
+
+    NOTICE_LOG_FMT(BOOT, "MainWindow: Restarting emulation with: {}", boot_path);
+
+    // Boot the disc game
+    StartGame(boot_path, ScanForSecondDisc::No);
+    return;
+  }
+
   HideRenderWidget(!m_exit_requested, m_exit_requested);
 #ifdef USE_DISCORD_PRESENCE
   if (!m_netplay_dialog->isVisible())
@@ -1579,6 +1594,7 @@ void MainWindow::NetPlayInit()
   Discord::InitNetPlayFunctionality(*m_netplay_discord);
   m_netplay_discord->Start();
 #endif
+
   connect(&Settings::Instance(), &Settings::ConfigChanged, this,
           &MainWindow::UpdateScreenSaverInhibition);
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,

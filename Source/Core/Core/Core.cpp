@@ -131,6 +131,9 @@ static std::queue<HostJob> s_host_jobs_queue;
 static thread_local bool tls_is_cpu_thread = false;
 static thread_local bool tls_is_gpu_thread = false;
 
+// Restart mechanism - persists across Stop/Init cycles
+static std::string s_pending_restart_path;
+
 static void EmuThread(Core::System& system, std::unique_ptr<BootParameters> boot,
                       WindowSystemInfo wsi);
 
@@ -933,6 +936,26 @@ void UpdateTitle(Core::System& system)
   }
 
   Host_UpdateTitle(message);
+}
+
+void RequestRestart(const std::string& boot_path)
+{
+  s_pending_restart_path = boot_path;
+}
+
+bool HasPendingRestartRequest()
+{
+  return !s_pending_restart_path.empty();
+}
+
+std::string GetPendingRestartPath()
+{
+  return s_pending_restart_path;
+}
+
+void ClearRestartRequest()
+{
+  s_pending_restart_path.clear();
 }
 
 void Shutdown(Core::System& system)
