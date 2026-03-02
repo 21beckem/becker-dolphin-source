@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 #include <span>
+#include <string>
 #include <vector>
 
 #include "Common/CommonTypes.h"
@@ -60,10 +61,19 @@ public:
   void SetMousePos(float x, float y);
   void SetMousePress(u32 button_mask);
 
+  // SVG overlay methods
+  bool LoadSVGOverlay(const std::string& svg_path);
+  void ClearSVGOverlay();
+  void SetSVGOverlayEnabled(bool enabled) { m_svg_overlay_enabled = enabled; }
+
 private:
   void DrawDebugText();
   void DrawChallengesAndLeaderboards();
   void UpdateImguiTexture(ImTextureData* tex);
+  void DrawSVGOverlay();
+  
+  std::unique_ptr<AbstractTexture> CreateTextureFromSVG(const std::string& svg_path,
+                                                         u32 width, u32 height);
 
   // ImGui resources.
   std::unique_ptr<NativeVertexFormat> m_imgui_vertex_format;
@@ -80,6 +90,11 @@ private:
 #ifdef USE_RETRO_ACHIEVEMENTS
   std::map<int, std::unique_ptr<AbstractTexture>, std::less<>> m_challenge_texture_map;
 #endif  // USE_RETRO_ACHIEVEMENTS
+
+  // SVG overlay members
+  std::unique_ptr<AbstractTexture> m_svg_overlay_texture;
+  bool m_svg_overlay_enabled = false;
+  float m_svg_overlay_alpha = 1.0f;
 
   bool m_ready = false;
 };

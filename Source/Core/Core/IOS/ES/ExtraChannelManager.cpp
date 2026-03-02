@@ -76,6 +76,12 @@ void ExtraChannelManager::LoadFromDirectory(const std::string& host_dir)
   ch.iso_path = iso_path_file;
   u64 title = 281480652869701;
   s_channels.emplace(title, std::move(ch));
+
+  
+  ExtraChannel ch2;
+  ch2.iso_path = "C:/Users/21bec/AppData/Roaming/BeckerBox/games/LEGO Indiana Jones - The Original "
+                "Adventures.rvz";
+  s_channels.emplace(4294967354, std::move(ch2));
   return;
 
 
