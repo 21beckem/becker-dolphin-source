@@ -3,14 +3,11 @@
 
 #include "VideoCommon/OnScreenUI.h"
 
-#define NANOSVG_IMPLEMENTATION
-#include "../../../Externals/nanosvg/nanosvg.h"
-#define NANOSVGRAST_IMPLEMENTATION
-#include "../../../Externals/nanosvg/nanosvgrast.h"
-
 #include "Common/CommonPaths.h"
 #include "Common/EnumMap.h"
 #include "Common/FileUtil.h"
+#include "Common/Image.h"
+#include "Common/IOFile.h"
 #include "Common/Logging/Log.h"
 #include "Common/Profiler.h"
 #include "Common/Timer.h"
@@ -429,7 +426,7 @@ void OnScreenUI::Finalize()
   DrawDebugText();
   OSD::DrawMessages();
   DrawChallengesAndLeaderboards();
-  DrawSVGOverlay();  // Add SVG overlay rendering
+  DrawPNGOverlay();  // Changed from DrawSVGOverlay
   ImGui::Render();
 
   // Check for font changes
@@ -608,104 +605,76 @@ void OnScreenUI::SetMousePress(u32 button_mask)
   io.MouseDown[2] = (button_mask & 4) != 0;
 }
 
-bool OnScreenUI::LoadSVGOverlay(const std::string& svg_path)
+bool OnScreenUI::LoadPNGOverlay(const std::string& png_path)
 {
-  INFO_LOG_FMT(VIDEO, "LoadSVGOverlay called with path: {}", svg_path);
+  INFO_LOG_FMT(VIDEO, "LoadPNGOverlay called with path: {}", png_path);
   
-  if (!File::Exists(svg_path))
+  if (!File::Exists(png_path))
   {
     ERROR_LOG_FMT(VIDEO, "  File does not exist!");
     return false;
   }
 
-  INFO_LOG_FMT(VIDEO, "  Creating texture from SVG ({}x{})...", m_backbuffer_width, m_backbuffer_height);
-  m_svg_overlay_texture = CreateTextureFromSVG(svg_path, m_backbuffer_width, m_backbuffer_height);
+  u32 width, height;
+  INFO_LOG_FMT(VIDEO, "  Creating texture from PNG...");
+  m_svg_overlay_texture = CreateTextureFromPNG(png_path, width, height);
   
   if (!m_svg_overlay_texture)
   {
-    ERROR_LOG_FMT(VIDEO, "  Failed to create texture from SVG!");
+    ERROR_LOG_FMT(VIDEO, "  Failed to create texture from PNG!");
     return false;
   }
 
   m_svg_overlay_enabled = true;
-  INFO_LOG_FMT(VIDEO, "  SVG overlay enabled successfully!");
-  INFO_LOG_FMT(VIDEO, "  Texture dimensions: {}x{}", m_svg_overlay_texture->GetWidth(), 
-               m_svg_overlay_texture->GetHeight());
+  INFO_LOG_FMT(VIDEO, "  PNG overlay enabled successfully!");
+  INFO_LOG_FMT(VIDEO, "  Texture dimensions: {}x{}", width, height);
   return true;
 }
 
-void OnScreenUI::ClearSVGOverlay()
+void OnScreenUI::ClearPNGOverlay()
 {
   m_svg_overlay_texture.reset();
   m_svg_overlay_enabled = false;
 }
 
-std::unique_ptr<AbstractTexture> OnScreenUI::CreateTextureFromSVG(const std::string& svg_path,
-                                                                    u32 width, u32 height)
+std::unique_ptr<AbstractTexture> OnScreenUI::CreateTextureFromPNG(const std::string& png_path,
+                                                                    u32& width, u32& height)
 {
-  INFO_LOG_FMT(VIDEO, "CreateTextureFromSVG: Reading SVG file...");
+  INFO_LOG_FMT(VIDEO, "CreateTextureFromPNG: Reading PNG file...");
   
-  // Read the SVG file into a string
-  std::string svg_content;
-  if (!File::ReadFileToString(svg_path, svg_content))
+  // Read the PNG file into a buffer
+  File::IOFile file;
+  if (!file.Open(png_path, "rb"))
   {
-    ERROR_LOG_FMT(VIDEO, "  Failed to read SVG file: {}", svg_path);
-    return nullptr;
-  }
-  
-  INFO_LOG_FMT(VIDEO, "  SVG file read successfully, {} bytes", svg_content.size());
-  INFO_LOG_FMT(VIDEO, "  Parsing SVG content...");
-  
-  // nsvgParse modifies the input string, so make a mutable copy
-  std::vector<char> svg_data(svg_content.begin(), svg_content.end());
-  svg_data.push_back('\0');  // Null terminator
-  
-  // Parse SVG from string content (nsvgParse will modify svg_data)
-  NSVGimage* image = nsvgParse(svg_data.data(), "px", 96.0f);
-  if (!image)
-  {
-    ERROR_LOG_FMT(VIDEO, "  nsvgParse returned NULL");
+    ERROR_LOG_FMT(VIDEO, "  Failed to open PNG file: {}", png_path);
     return nullptr;
   }
 
-  INFO_LOG_FMT(VIDEO, "  SVG parsed successfully! Image size: {}x{}", image->width, image->height);
-
-  // Create rasterizer
-  NSVGrasterizer* rast = nsvgCreateRasterizer();
-  if (!rast)
+  Common::UniqueBuffer<u8> png_buffer(file.GetSize());
+  if (!file.ReadBytes(png_buffer.data(), file.GetSize()))
   {
-    ERROR_LOG_FMT(VIDEO, "  nsvgCreateRasterizer returned NULL");
-    nsvgDelete(image);
+    ERROR_LOG_FMT(VIDEO, "  Failed to read PNG file: {}", png_path);
     return nullptr;
   }
-
-  INFO_LOG_FMT(VIDEO, "  Rasterizer created successfully");
-
-  // Calculate scale to fit the SVG to the screen
-  float scale_x = static_cast<float>(width) / image->width;
-  float scale_y = static_cast<float>(height) / image->height;
-  float scale = std::min(scale_x, scale_y);
-
-  INFO_LOG_FMT(VIDEO, "  Rasterizing to {}x{} with scale {}", width, height, scale);
-
-  // Allocate buffer for rasterized image (RGBA)
-  std::vector<u8> img_data(width * height * 4);
-
-  // Rasterize SVG to buffer
-  nsvgRasterize(rast, image, 0, 0, scale, img_data.data(), width, height, width * 4);
-
-  INFO_LOG_FMT(VIDEO, "  Rasterization complete, buffer size: {} bytes", img_data.size());
-
-  // Clean up nanosvg resources
-  nsvgDeleteRasterizer(rast);
-  nsvgDelete(image);
-
-  // Create Dolphin texture from the rasterized data
+  
+  INFO_LOG_FMT(VIDEO, "  PNG file read successfully, {} bytes", file.GetSize());
+  
+  // Decode PNG using Dolphin's built-in PNG loader
+  Common::UniqueBuffer<u8> img_data;
+  if (!Common::LoadPNG(png_buffer, &img_data, &width, &height))
+  {
+    ERROR_LOG_FMT(VIDEO, "  Failed to decode PNG file");
+    return nullptr;
+  }
+  
+  INFO_LOG_FMT(VIDEO, "  PNG decoded successfully! Image size: {}x{}", width, height);
+  
+  // Create Dolphin texture from the decoded data
   INFO_LOG_FMT(VIDEO, "  Creating GPU texture...");
   TextureConfig tex_config(width, height, 1, 1, 1, AbstractTextureFormat::RGBA8, 0,
                            AbstractTextureType::Texture_2DArray);
 
-  auto texture = g_gfx->CreateTexture(tex_config, "SVG Overlay");
+  auto texture = g_gfx->CreateTexture(tex_config, "PNG Overlay");
   if (!texture)
   {
     ERROR_LOG_FMT(VIDEO, "  g_gfx->CreateTexture returned NULL!");
@@ -714,7 +683,7 @@ std::unique_ptr<AbstractTexture> OnScreenUI::CreateTextureFromSVG(const std::str
 
   INFO_LOG_FMT(VIDEO, "  GPU texture created, uploading data...");
 
-  // Upload the rasterized data to the texture
+  // Upload the decoded data to the texture
   texture->Load(0, width, height, width, img_data.data(), sizeof(u8) * width * height * 4);
 
   INFO_LOG_FMT(VIDEO, "  Texture upload complete!");
@@ -722,13 +691,14 @@ std::unique_ptr<AbstractTexture> OnScreenUI::CreateTextureFromSVG(const std::str
   return texture;
 }
 
-void OnScreenUI::DrawSVGOverlay()
+void OnScreenUI::DrawPNGOverlay()
 {
-  std::string svg_path = File::GetExeDirectory() + DIR_SEP + "bbox-overlay.svg";
+  std::string png_path = "C:/Users/21bec/local-git/becker-box-mrk-2/bbox-ui.png";
+  //std::string png_path = File::GetExeDirectory() + DIR_SEP + "bbox-overlay.png";
 
-  if (File::Exists(svg_path))
+  if (File::Exists(png_path))
   {
-    LoadSVGOverlay(svg_path);
+    LoadPNGOverlay(png_path);
   }
 
   // ALWAYS render if texture is available (no config check)
@@ -746,14 +716,14 @@ void OnScreenUI::DrawSVGOverlay()
   ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
   ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 
-  ImGui::Begin("##SVGOverlay", nullptr,
+  ImGui::Begin("##PNGOverlay", nullptr,
                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
                    ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse |
                    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoBackground |
                    ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoInputs |
                    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-  // Draw the SVG texture as an image covering the entire window
+  // Draw the PNG texture as an image covering the entire window
   ImVec2 display_size = ImGui::GetIO().DisplaySize;
 
   // Apply alpha for transparency
