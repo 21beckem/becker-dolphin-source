@@ -293,6 +293,8 @@ add_executable(dolphin-emu
   MainWindow.h
   MenuBar.cpp
   MenuBar.h
+  UdpBridge.cpp
+  UdpBridge.h
   NetPlay/ChunkedProgressDialog.cpp
   NetPlay/ChunkedProgressDialog.h
   NetPlay/GameDigestDialog.cpp

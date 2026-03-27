@@ -52,6 +52,7 @@ class SettingsWindow;
 class SkylanderPortalWindow;
 class ThreadWidget;
 class ToolBar;
+class UdpBridge;
 class WatchWidget;
 class WiiTASInputWindow;
 class WiiSpeakWindow;
@@ -213,6 +214,8 @@ private:
   void ShowOSDWindow();
 
   void ChangeDisc();
+  bool ChangeDiscFromPath(const std::string& path);
+  std::string GetCurrentGameTitle() const;
   void EjectDisc();
 
   void OpenUserFolder();
@@ -234,6 +237,7 @@ private:
 
   QStackedWidget* m_stack;
   ToolBar* m_tool_bar;
+  std::unique_ptr<UdpBridge> m_udp_bridge;
   MenuBar* m_menu_bar;
   SearchBar* m_search_bar;
   GameList* m_game_list;

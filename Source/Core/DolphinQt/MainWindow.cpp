@@ -50,6 +50,7 @@
 #include "Core/Config/NetplaySettings.h"
 #include "Core/Config/UISettings.h"
 #include "Core/Config/WiimoteSettings.h"
+#include "Core/ConfigManager.h"
 #include "Core/Core.h"
 #include "Core/FreeLookManager.h"
 #include "Core/HW/DVD/DVDInterface.h"
@@ -125,6 +126,7 @@
 #include "DolphinQt/TAS/GCTASInputWindow.h"
 #include "DolphinQt/TAS/WiiTASInputWindow.h"
 #include "DolphinQt/ToolBar.h"
+#include "UdpBridge.h"
 #include "DolphinQt/WiiUpdate.h"
 
 #include "InputCommon/ControllerInterface/ControllerInterface.h"
@@ -264,6 +266,13 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
 #endif  // USE_RETRO_ACHIEVEMENTS
 
   InitCoreCallbacks();
+
+  m_udp_bridge = std::make_unique<UdpBridge>(
+      [this](const std::string& path) { return ChangeDiscFromPath(path); },
+      [this] { ForceStop(); },
+      [this] { return GetCurrentGameTitle(); },
+      this
+  );
 
   NetPlayInit();
 
@@ -827,6 +836,20 @@ void MainWindow::ChangeDisc()
     return;
 
   m_system.GetDVDInterface().ChangeDisc(Core::CPUThreadGuard{m_system}, paths);
+}
+
+bool MainWindow::ChangeDiscFromPath(const std::string& path)
+{
+  if (path.empty() || !File::Exists(path))
+    return false;
+
+  m_system.GetDVDInterface().ChangeDisc(Core::CPUThreadGuard{m_system}, {path});
+  return true;
+}
+
+std::string MainWindow::GetCurrentGameTitle() const
+{
+  return SConfig::GetInstance().GetTitleDescription();
 }
 
 void MainWindow::EjectDisc()
@@ -1579,6 +1602,7 @@ void MainWindow::NetPlayInit()
   Discord::InitNetPlayFunctionality(*m_netplay_discord);
   m_netplay_discord->Start();
 #endif
+
   connect(&Settings::Instance(), &Settings::ConfigChanged, this,
           &MainWindow::UpdateScreenSaverInhibition);
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this,
