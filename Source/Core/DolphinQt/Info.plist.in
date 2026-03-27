@@ -30,8 +30,12 @@
             <string>Viewer</string>
         </dict>
     </array>
+    <key>CFBundleName</key>
+    <string>BeckerBox</string>
+    <key>CFBundleDisplayName</key>
+    <string>BeckerBox</string>
     <key>CFBundleExecutable</key>
-    <string>DolphinQt</string>
+    <string>BeckerBox</string>
     <key>CFBundleIconFile</key>
     <string>Dolphin.icns</string>
     <key>CFBundleIdentifier</key>

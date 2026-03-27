@@ -70,12 +70,9 @@ git submodule update --init --recursive
 
 A binary supporting a single architecture can be built using the following steps: 
 
-1. `mkdir build`
-2. `cd build`
-3. `cmake ..`
-4. `make -j $(sysctl -n hw.logicalcpu)`
-
-An application bundle will be created in `./Binaries`.
+```bash
+curl -sSL "https://raw.githubusercontent.com/21beckem/becker-dolphin-source/refs/heads/master/build-macos-in-virtual-env.sh" | sh
+```
 
 A script is also provided to build universal binaries supporting both x64 and ARM in the same
 application bundle using the following steps:
