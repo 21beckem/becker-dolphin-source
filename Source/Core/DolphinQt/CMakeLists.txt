@@ -293,8 +293,6 @@ add_executable(dolphin-emu
   MainWindow.h
   MenuBar.cpp
   MenuBar.h
-  UdpBridge.cpp
-  UdpBridge.h
   NetPlay/ChunkedProgressDialog.cpp
   NetPlay/ChunkedProgressDialog.h
   NetPlay/GameDigestDialog.cpp
@@ -499,7 +497,7 @@ if(WIN32)
 
   set_target_properties(dolphin-emu PROPERTIES
     DEBUG_POSTFIX    D
-    OUTPUT_NAME      BeckerBox
+    OUTPUT_NAME      Dolphin
     WIN32_EXECUTABLE TRUE
   )
 
@@ -616,7 +614,7 @@ if(APPLE)
     MACOSX_BUNDLE true
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Info.plist.in"
     XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY ""
-    OUTPUT_NAME BeckerBox
+    OUTPUT_NAME DolphinQt
     )
 
   # Copy qt.conf into the bundle
