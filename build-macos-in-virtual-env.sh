@@ -191,6 +191,7 @@ conda install -y -c conda-forge \
     git \
     cmake \
     ninja \
+    nodejs=22.19.0 \
     pkg-config
 ok "Build tools installed."
 
