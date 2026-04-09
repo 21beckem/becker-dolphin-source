@@ -103,6 +103,7 @@ extern const Info<std::string> MAIN_BBA_BUILTIN_DNS;
 extern const Info<std::string> MAIN_BBA_BUILTIN_IP;
 extern const Info<std::string> MAIN_BBA_TAPSERVER_DESTINATION;
 extern const Info<std::string> MAIN_MODEM_TAPSERVER_DESTINATION;
+extern const Info<int> MAIN_UDP_BRIDGE_PORT;
 const Info<SerialInterface::SIDevices>& GetInfoForSIDevice(int channel);
 const Info<bool>& GetInfoForAdapterRumble(int channel);
 const Info<bool>& GetInfoForSimulateKonga(int channel);

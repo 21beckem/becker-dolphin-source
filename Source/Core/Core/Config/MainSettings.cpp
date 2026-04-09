@@ -122,6 +122,7 @@ const Info<std::string>& GetInfoForGCIPathOverride(ExpansionInterface::Slot slot
 }
 
 const Info<int> MAIN_MEMORY_CARD_SIZE{{System::Main, "Core", "MemoryCardSize"}, -1};
+const Info<int> MAIN_UDP_BRIDGE_PORT{{System::Main, "Core", "UDPBridgePort"}, 20904};
 
 const Info<ExpansionInterface::EXIDeviceType> MAIN_SLOT_A{
     {System::Main, "Core", "SlotA"}, ExpansionInterface::EXIDeviceType::MemoryCardFolder};

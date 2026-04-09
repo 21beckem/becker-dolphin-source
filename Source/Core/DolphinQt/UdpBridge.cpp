@@ -17,9 +17,10 @@
 
 #include <utility>
 
+#include "Core/Config/MainSettings.h"
+
 namespace
 {
-constexpr unsigned short UDP_LISTEN_PORT = 20904;
 constexpr int SOCKET_POLL_INTERVAL_MS = 10;
 constexpr int TITLE_POLL_INTERVAL_MS = 250;
 }  // namespace
@@ -32,7 +33,9 @@ UdpBridge::UdpBridge(ChangeDiscCallback change_disc_callback, PowerOffCallback p
       m_title_poll_timer(new QTimer(this))
 {
   m_socket.setBlocking(false);
-  const sf::Socket::Status bind_status = m_socket.bind(UDP_LISTEN_PORT);
+  const unsigned short udp_listen_port =
+      static_cast<unsigned short>(Config::Get(Config::MAIN_UDP_BRIDGE_PORT));
+  const sf::Socket::Status bind_status = m_socket.bind(udp_listen_port);
   if (bind_status != sf::Socket::Status::Done)
     return;
 
