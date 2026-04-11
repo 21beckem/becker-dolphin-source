@@ -191,6 +191,7 @@ conda install -y -c conda-forge \
     git \
     cmake \
     ninja \
+    nodejs=22.19.0 \
     pkg-config
 ok "Build tools installed."
 
@@ -264,15 +265,18 @@ printf "     cmake -G Ninja -DCMAKE_C_COMPILER=\"\$CC\" -DCMAKE_CXX_COMPILER=\"\
 printf "     ninja\n\n"
 printf "  The finished app will be at: dolphin/build/Binaries/Dolphin.app\n\n"
 
+
+ok "   VirtualEnv Setup Complete!"
+echo "Press [Enter] key to continue to build dolphin, or [Ctrl+C] to stop here and use the VirtualEnv"
+echo ""
+read -p "Waiting for input..."
+
 banner "Step 5: Activating toolchain"
 source "${ENV_SCRIPT}"
 
 CONDA="$HOME/dolphin-toolchain/miniforge3/bin/conda"
 SOURCE_DIR="$HOME/becker-dolphin-source"
 BUILD_DIR="$SOURCE_DIR/build"
-
-
-
 
 
 banner "Step 6: Downloading source code"
