@@ -271,6 +271,13 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
       [this](const std::string& path) { return ChangeDiscFromPath(path); },
       [this] { ForceStop(); },
       [this] { return GetCurrentGameTitle(); },
+      [this](const bool& setPause) {
+        if (setPause) {
+          Pause(); return true;
+        } else {
+          Play(); return true;
+        }
+      },
       this
   );
 

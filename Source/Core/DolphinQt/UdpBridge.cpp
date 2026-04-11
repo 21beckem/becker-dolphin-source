@@ -25,11 +25,19 @@ constexpr int SOCKET_POLL_INTERVAL_MS = 10;
 constexpr int TITLE_POLL_INTERVAL_MS = 250;
 }  // namespace
 
-UdpBridge::UdpBridge(ChangeDiscCallback change_disc_callback, PowerOffCallback power_off_callback,
-                     GetTitleCallback get_title_callback, QObject* parent)
-    : QObject(parent), m_change_disc_callback(std::move(change_disc_callback)),
+UdpBridge::UdpBridge(
+  ChangeDiscCallback change_disc_callback,
+  PowerOffCallback power_off_callback,
+  GetTitleCallback get_title_callback,
+  SetPauseCallback set_pause_callback,
+  QObject* parent
+)
+    : QObject(parent),
+      m_change_disc_callback(std::move(change_disc_callback)),
       m_power_off_callback(std::move(power_off_callback)),
-      m_get_title_callback(std::move(get_title_callback)), m_socket_poll_timer(new QTimer(this)),
+      m_get_title_callback(std::move(get_title_callback)),
+      m_set_pause_callback(std::move(set_pause_callback)),
+      m_socket_poll_timer(new QTimer(this)),
       m_title_poll_timer(new QTimer(this))
 {
   m_socket.setBlocking(false);
@@ -117,6 +125,14 @@ void UdpBridge::HandleCommandDatagram(const QByteArray& datagram)
   {
     SendCurrentTitle();
     return;
+  }
+
+  if (command == QStringLiteral("set_pause"))
+  {
+    const bool set_pause = obj.value(QStringLiteral("to")).toBool();
+    if (!m_set_pause_callback(set_pause))
+      SendError(QStringLiteral("failed to set pause"));
+    return SendResponse("set_pause", "true");
   }
 
   SendError(QStringLiteral("unknown command"));

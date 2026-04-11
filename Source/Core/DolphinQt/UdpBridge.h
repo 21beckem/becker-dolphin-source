@@ -22,9 +22,15 @@ public:
   using ChangeDiscCallback = std::function<bool(const std::string& path)>;
   using PowerOffCallback = std::function<void()>;
   using GetTitleCallback = std::function<std::string()>;
+  using SetPauseCallback = std::function<bool(const bool& setPause)>;
 
-  UdpBridge(ChangeDiscCallback change_disc_callback, PowerOffCallback power_off_callback,
-            GetTitleCallback get_title_callback, QObject* parent = nullptr);
+  UdpBridge(
+    ChangeDiscCallback change_disc_callback,
+    PowerOffCallback power_off_callback,
+    GetTitleCallback get_title_callback,
+    SetPauseCallback set_pause_callback,
+    QObject* parent = nullptr
+  );
 
 private:
   void OnSocketPoll();
@@ -39,6 +45,7 @@ private:
   ChangeDiscCallback m_change_disc_callback;
   PowerOffCallback m_power_off_callback;
   GetTitleCallback m_get_title_callback;
+  SetPauseCallback m_set_pause_callback;
 
   sf::UdpSocket m_socket;
   QTimer* m_socket_poll_timer;
