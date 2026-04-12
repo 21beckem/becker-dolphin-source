@@ -11,6 +11,5 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LocalDebuggerCommandArgumentsHistory>-U -b|-U=USA -b|-b -n 0000000100000002|</LocalDebuggerCommandArgumentsHistory>
-    <LocalDebuggerCommandArguments>-b -n 0000000100000002</LocalDebuggerCommandArguments>
   </PropertyGroup>
 </Project>

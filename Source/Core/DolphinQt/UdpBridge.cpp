@@ -29,14 +29,16 @@ UdpBridge::UdpBridge(
   ChangeDiscCallback change_disc_callback,
   PowerOffCallback power_off_callback,
   GetTitleCallback get_title_callback,
-  SetPauseCallback set_pause_callback,
+  GoHomeCallback go_home_callback,
+  SetPausedCallback set_paused_callback,
   QObject* parent
 )
     : QObject(parent),
       m_change_disc_callback(std::move(change_disc_callback)),
       m_power_off_callback(std::move(power_off_callback)),
       m_get_title_callback(std::move(get_title_callback)),
-      m_set_pause_callback(std::move(set_pause_callback)),
+      m_go_home_callback(std::move(go_home_callback)),
+      m_set_paused_callback(std::move(set_paused_callback)),
       m_socket_poll_timer(new QTimer(this)),
       m_title_poll_timer(new QTimer(this))
 {
@@ -127,11 +129,22 @@ void UdpBridge::HandleCommandDatagram(const QByteArray& datagram)
     return;
   }
 
-  if (command == QStringLiteral("set_pause"))
+  if (command == QStringLiteral("go_home"))
   {
-    const bool set_pause = obj.value(QStringLiteral("to")).toBool();
-    if (!m_set_pause_callback(set_pause))
-      SendError(QStringLiteral("failed to set pause"));
+    if (!m_go_home_callback())
+    {
+      SendError(QStringLiteral("failed to go home"));
+      return;
+    }
+
+    return SendResponse("go_home", "true");
+  }
+
+  if (command == QStringLiteral("set_paused"))
+  {
+    const bool set_paused = obj.value(QStringLiteral("to")).toBool();
+    if (!m_set_paused_callback(set_paused))
+      SendError(QStringLiteral("failed to set paused"));
     return SendResponse("set_pause", "true");
   }
 

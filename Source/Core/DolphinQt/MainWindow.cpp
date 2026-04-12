@@ -15,6 +15,7 @@
 #include <QMimeData>
 #include <QStackedWidget>
 #include <QStyleHints>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWindow>
 
@@ -62,6 +63,8 @@
 #include "Core/HW/Wiimote.h"
 #include "Core/HW/WiimoteEmu/WiimoteEmu.h"
 #include "Core/HotkeyManager.h"
+#include "Core/IOS/ES/ES.h"
+#include "Core/IOS/IOS.h"
 #include "Core/IOS/USB/Bluetooth/BTEmu.h"
 #include "Core/IOS/USB/Bluetooth/WiimoteDevice.h"
 #include "Core/Movie.h"
@@ -271,8 +274,47 @@ MainWindow::MainWindow(Core::System& system, std::unique_ptr<BootParameters> boo
       [this](const std::string& path) { return ChangeDiscFromPath(path); },
       [this] { ForceStop(); },
       [this] { return GetCurrentGameTitle(); },
-      [this](const bool& setPause) {
-        if (setPause) {
+      [this] {
+        if (m_go_home_transition_in_progress)
+        {
+          const bool transition_finished =
+              !Core::IsRunning(m_system) || SConfig::GetInstance().GetTitleID() == Titles::SYSTEM_MENU;
+          if (!transition_finished)
+            return false;
+
+          m_go_home_transition_in_progress = false;
+        }
+
+        if (Core::IsRunning(m_system) && m_system.IsWii())
+        {
+          if (SConfig::GetInstance().GetTitleID() == Titles::SYSTEM_MENU)
+            return true;
+
+          const Core::CPUThreadGuard guard{m_system};
+          IOS::HLE::EmulationKernel* const ios = m_system.GetIOS();
+          if (!ios)
+            return false;
+
+          const auto es_device = ios->GetESDevice();
+          if (!es_device ||
+              !es_device->LaunchTitle(Titles::SYSTEM_MENU, IOS::HLE::HangPPC::Yes))
+          {
+            return false;
+          }
+
+          m_go_home_transition_in_progress = true;
+          QTimer::singleShot(5000, this, [this] { m_go_home_transition_in_progress = false; });
+          return true;
+        }
+
+        if (!Core::IsUninitialized(m_system))
+          return false;
+
+        StartGame(std::make_unique<BootParameters>(BootParameters::NANDTitle{Titles::SYSTEM_MENU}));
+        return true;
+      },
+      [this](const bool& setPaused) {
+        if (setPaused) {
           Pause(); return true;
         } else {
           Play(); return true;
@@ -439,7 +481,10 @@ void MainWindow::InitCoreCallbacks()
 {
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, [this](Core::State state) {
     if (state == Core::State::Uninitialized)
+    {
+      m_go_home_transition_in_progress = false;
       OnStopComplete();
+    }
 
     if (state == Core::State::Running && m_fullscreen_requested)
     {
@@ -1205,6 +1250,7 @@ void MainWindow::StartGame(std::unique_ptr<BootParameters>&& parameters)
   // Boot up, show an error if it fails to load the game.
   if (!BootManager::BootCore(m_system, std::move(parameters),
                              ::GetWindowSystemInfo(m_render_widget->windowHandle())))
+
   {
     ModalMessageBox::critical(this, tr("Error"), tr("Failed to init core"), QMessageBox::Ok);
     HideRenderWidget();
